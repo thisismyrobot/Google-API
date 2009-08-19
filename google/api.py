@@ -5,20 +5,20 @@ import xml.dom.minidom
 
 
 class GoogleConnector:
-    """ a connector for google accounts. provides methods to retrieve unread
+    """ A connector for google accounts. provides methods to retrieve unread
         email and google reader counts
     """
     username = u''
     password = u''
 
     def __init__(self, username, password):
-        """ constructor - takes username + password for google account
+        """ Saves username + password for google account
         """
         self.username = username
         self.password = password
 
     def get_gmail_unread_count(self):
-        """ returns an integer representing the number of unread emails in
+        """ Returns an integer representing the number of unread emails in
             a gmail inbox.
         """
         email_url = 'https://gmail.google.com/gmail/feed/atom'
@@ -33,7 +33,7 @@ class GoogleConnector:
         return email_counter
 
     def get_google_reader_unread_count(self):
-        """ returns an integer representing the number of unread items in
+        """ Returns an integer representing the number of unread items in
             a google reader account.
         """
         reader_auth = urllib.urlencode(dict(Email=self.username, Passwd=self.password))
