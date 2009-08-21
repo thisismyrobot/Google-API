@@ -9,6 +9,7 @@ username = raw_input("Google Account Username: ")
 password = getpass.getpass("Google Account Password: ")
 
 connector = google.api.GoogleConnector(username, password)
+
 email_counter = connector.get_gmail_unread_count()
 reader_counter = connector.get_google_reader_unread_count()
 

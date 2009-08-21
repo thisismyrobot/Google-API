@@ -1,12 +1,13 @@
 import base64
 import urllib
 import urllib2
-import xml.dom.minidom
+import libxml2
 
 
 class GoogleConnector:
-    """ A connector for google accounts. provides methods to retrieve unread
-        email and google reader counts
+    """ A connector for google accounts. Provides methods to retrieve unread
+        email and google reader counts. Depends on standard python 2.6 libaries
+        with the exception of libxml2.
     """
     username = u''
     password = u''
@@ -24,13 +25,17 @@ class GoogleConnector:
         email_url = 'https://gmail.google.com/gmail/feed/atom'
         email_request = urllib2.Request(email_url)
         email_auth = base64.encodestring('%s:%s' % (self.username, self.password))[:-1]
-        email_request.add_header("Authorization", "Basic %s" % email_auth)
+        email_request.add_header('Authorization', 'Basic %s' % email_auth)
         email_connection = urllib2.urlopen(email_request)
-        email_data = email_connection.read();
+        email_data = email_connection.read()
         email_connection.close()
-        email_dom = xml.dom.minidom.parseString(email_data)
-        email_counter = int(email_dom.getElementsByTagName('fullcount')[0].childNodes[0].data)
-        return email_counter
+
+        email_connection_xml = libxml2.parseMemory(email_data, len(email_data))
+        email_context = email_connection_xml.xpathNewContext()
+        email_context.xpathRegisterNs('rss', 'http://purl.org/atom/ns#')
+        email_counter = email_context.xpathEval("//rss:fullcount/text()")[0].__str__()
+          
+        return int(email_counter)
 
     def get_google_reader_unread_count(self):
         """ Returns an integer representing the number of unread items in
@@ -43,10 +48,10 @@ class GoogleConnector:
         reader_connection = urllib2.urlopen(reader_request)
         reader_data = reader_connection.read()
         reader_connection.close()
-        reader_dom = xml.dom.minidom.parseString(reader_data)
-        reader_counter = 0
-        for reader_dom_object in reader_dom.getElementsByTagName('object'):
-            if reader_dom_object.getElementsByTagName('string'):
-                if str(reader_dom_object.getElementsByTagName('string')[0].childNodes[0].data).endswith('google/reading-list'):
-                    reader_counter = int(reader_dom_object.getElementsByTagName('number')[0].childNodes[0].data)
-        return reader_counter
+        
+        reader_connection_xml = libxml2.parseMemory(reader_data, len(reader_data))
+        reader_context = reader_connection_xml.xpathNewContext()
+        reader_counter = reader_context.xpathEval(
+            "//string[contains(text(),'com.google/reading-list')]/parent::object/number[@name='count']/text()")[0].__str__()
+
+        return int(reader_counter)
