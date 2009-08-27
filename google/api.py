@@ -18,6 +18,28 @@ class GoogleConnector:
         self.username = username
         self.password = password
 
+    def get_google_apps_clientlogin_headers(self):
+        """ performs the authentication handshake for clientlogin
+            in google apps. returns a dict of headers to add to any
+            future request.
+        """
+        cl_post = urllib.urlencode(dict(
+            accountType='HOSTED_OR_GOOGLE',
+            Email=self.username,
+            Passwd=self.password,
+            service='writely', #docs
+            source='none-none-none')
+            )
+        cl_url = 'https://www.google.com/accounts/ClientLogin'
+        cl_data = urllib2.urlopen('https://www.google.com/accounts/ClientLogin', cl_post).read()
+        cl_auth_token = cl_data.split("\n")[2].split("=")[1]
+        cl_headers = {
+            'Authorization':'GoogleLogin auth=%s' % cl_auth_token,
+            'GData-Version':'2.0'
+            }
+
+        return cl_headers
+
     def get_gmail_unread_count(self):
         """ Returns an integer representing the number of unread emails in
             a gmail inbox.
@@ -30,8 +52,8 @@ class GoogleConnector:
         email_data = email_connection.read()
         email_connection.close()
 
-        email_connection_xml = libxml2.parseMemory(email_data, len(email_data))
-        email_context = email_connection_xml.xpathNewContext()
+        email_data_xml = libxml2.parseMemory(email_data, len(email_data))
+        email_context = email_data_xml.xpathNewContext()
         email_context.xpathRegisterNs('rss', 'http://purl.org/atom/ns#')
         email_counter = email_context.xpathEval("//rss:fullcount/text()")[0].__str__()
 
@@ -49,8 +71,8 @@ class GoogleConnector:
         reader_data = reader_connection.read()
         reader_connection.close()
 
-        reader_connection_xml = libxml2.parseMemory(reader_data, len(reader_data))
-        reader_context = reader_connection_xml.xpathNewContext()
+        reader_data_xml = libxml2.parseMemory(reader_data, len(reader_data))
+        reader_context = reader_data_xml.xpathNewContext()
         reader_counter = reader_context.xpathEval(
             "//string[contains(text(),'com.google/reading-list')]/parent::object/number[@name='count']/text()")[0].__str__()
 
@@ -59,27 +81,18 @@ class GoogleConnector:
     def get_docs(self):
         """ Returns a list of docs in you google apps account.
         """
-        #clientlogin part - rip out
-        cl_post = urllib.urlencode(dict(
-            accountType='HOSTED_OR_GOOGLE',
-            Email=self.username,
-            Passwd=self.password,
-            service='writely', #docs
-            source='none-none-none')
-            )
-        cl_url = 'https://www.google.com/accounts/ClientLogin'
-        cl_data = urllib2.urlopen('https://www.google.com/accounts/ClientLogin', cl_post).read()
-        cl_auth_token = cl_data.split("\n")[2].split("=")[1]
-        cl_header = 'GoogleLogin auth=%s' % cl_auth_token
-        ver_header = '2.0'
-
-        #docs specific
         docs_request = urllib2.Request('https://docs.google.com/feeds/documents/private/full')
-        docs_request.add_header('Authorization', cl_header)
-        docs_request.add_header('GData-Version', ver_header)
+        headers = self.get_google_apps_clientlogin_headers()
+        for key in headers.keys():
+            docs_request.add_header(key, headers[key])
 
         docs_connection = urllib2.urlopen(docs_request)
         docs_data = docs_connection.read()
         docs_connection.close()
 
-        return docs_data
+        docs_data_xml = libxml2.parseMemory(docs_data, len(docs_data))
+        docs_context = docs_data_xml.xpathNewContext()
+        docs_context.xpathRegisterNs('atom', 'http://www.w3.org/2005/Atom')
+        docs_list = docs_context.xpathEval("//atom:feed//atom:entry/atom:title/text()")
+        
+        return [doc.__str__() for doc in docs_list]

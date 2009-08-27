@@ -16,4 +16,7 @@ documents = connector.get_docs()
 
 print "GMail states that you have %d unread emails" % email_counter
 print "Google Reader states that you have %d unread news items" % reader_counter
-#print "These are your google documents:" % documents
+print "These are your google documents:"
+for document in documents:
+    print " * %s" % document
+
